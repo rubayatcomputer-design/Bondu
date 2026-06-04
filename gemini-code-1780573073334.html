@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>সংগঠনের মাসিক সঞ্চয় ও কিস্তি হিসাব</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #27ae60;
+            --bg-color: #f4f6f7;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 0;
+            direction: ltr;
+        }
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.05);
+        }
+        .btn {
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .btn:hover { background-color: #219150; }
+        
+        /* Login Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            text-align: center;
+            width: 300px;
+        }
+        .modal input {
+            width: 90%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        /* Table Style */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: center;
+        }
+        th { background-color: var(--primary-color); color: white; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        
+        .admin-controls {
+            display: none;
+            background: #eef9f2;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-left: 5px solid var(--secondary-color);
+            border-radius: 4px;
+        }
+        .admin-controls input {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>আমাদের সংগঠন - সঞ্চয় ও কিস্তি ড্যাশবোর্ড</h1>
+    <p>সকল সদস্যের জন্য উন্মুক্ত তথ্য ভাণ্ডার</p>
+    <button class="btn" id="loginBtn" onclick="openModal()">অ্যাডমিন লগইন</button>
+    <button class="btn" id="logoutBtn" onclick="logout()" style="display:none;">লগআউট</button>
+</header>
+
+<div class="container">
+    <div class="admin-controls" id="adminPanel">
+        <h3>নতুন হিসাব যোগ করুন (অ্যাডমিন প্যানেল)</h3>
+        <input type="text" id="member尊ame" placeholder="সদস্যের নাম">
+        <input type="number" id="savingsAmount" placeholder="মাসিক সঞ্চয় (টাকা)">
+        <input type="number" id="installmentAmount" placeholder="মাসিক কিস্তি (টাকা)">
+        <button class="btn" onclick="addData()">ডাটা যোগ করুন</button>
+    </div>
+
+    <h2>সদস্যদের হিসাব তালিকা</h2>
+    <table id="dataTable">
+        <thead>
+            <tr>
+                <th>আইডি</th>
+                <th>সদস্যের নাম</th>
+                <th>মাসিক সঞ্চয় (টাকা)</th>
+                <th>মাসিক কিস্তি (টাকা)</th>
+                <th class="action-column" style="display:none;">অ্যাকশন</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+            </tbody>
+    </table>
+</div>
+
+<div class="modal" id="loginModal">
+    <div class="modal-content">
+        <h3>অ্যাডমিন লগইন</h3>
+        <input type="password" id="passwordInput" placeholder="পাসওয়ার্ড দিন">
+        <br>
+        <button class="btn" onclick="checkPassword()">প্রবেশ করুন</button>
+        <button class="btn" style="background:#666;" onclick="closeModal()">বন্ধ করুন</button>
+    </div>
+</div>
+
+<script>
+    // ডেমো ডাটাবেজ (প্রাথমিক তথ্য)
+    let organizationData = [
+        { id: 1, name: "আব্দুর রহমান", savings: 1000, installment: 500 },
+        { id: 2, name: "মোঃ রফিক", savings: 1000, installment: 0 },
+        { id: 3, name: "হাসান আলী", savings: 1000, installment: 1200 }
+    ];
+
+    let isAdmin = false;
+    const SECRET_PASSWORD = "mymember2026"; // আপনার পাসওয়ার্ড এখানে পরিবর্তন করুন
+
+    // ওয়েবসাইট লোড হলে ডাটা দেখাবে
+    window.onload = function() {
+        renderTable();
+    };
+
+    function renderTable() {
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+
+        organizationData.forEach((item, index) => {
+            let row = `<tr>
+                <td>${item.id}</td>
+                <td>${item.name}</td>
+                <td>${item.savings}/-</td>
+                <td>${item.installment}/-</td>
+                ${isAdmin ? `<td class="action-column"><button onclick="deleteData(${index})" style="background:#e74c3c; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;">মুছুন</button></td>` : ''}
+            </tr>`;
+            tbody.innerHTML += row;
+        });
+
+        // অ্যাডমিন হলে টেবিলের অ্যাকশন কলাম দেখাবে
+        const actionHeaders = document.querySelectorAll('.action-column');
+        actionHeaders.forEach(el => el.style.display = isAdmin ? 'table-cell' : 'none');
+    }
+
+    // পাসওয়ার্ড চেক
+    function checkPassword() {
+        const pass = document.getElementById('passwordInput').value;
+        if(pass === SECRET_PASSWORD) {
+            isAdmin = true;
+            document.getElementById('adminPanel').style.display = 'block';
+            document.getElementById('loginBtn').style.display = 'none';
+            document.getElementById('logoutBtn').style.display = 'inline-block';
+            closeModal();
+            renderTable();
+            alert('লগইন সফল হয়েছে! আপনি এখন ডাটা পরিবর্তন করতে পারবেন।');
+        } else {
+            alert('ভুল পাসওয়ার্ড! আবার চেষ্টা করুন।');
+        }
+        document.getElementById('passwordInput').value = '';
+    }
+
+    // ডাটা যোগ করা
+    function addData() {
+        const name = document.getElementById('member尊ame').value;
+        const savings = document.getElementById('savingsAmount').value;
+        const installment = document.getElementById('installmentAmount').value;
+
+        if(!name || !savings || !installment) {
+            alert('অনুগ্রহ করে সব ঘর পূরণ করুন।');
+            return;
+        }
+
+        const newId = organizationData.length > 0 ? organizationData[organizationData.length - 1].id + 1 : 1;
+        organizationData.push({
+            id: newId,
+            name: name,
+            savings: parseInt(savings),
+            installment: parseInt(installment)
+        });
+
+        renderTable();
+        // ইনপুট ফিল্ড খালি করা
+        document.getElementById('member尊ame').value = '';
+        document.getElementById('savingsAmount').value = '';
+        document.getElementById('installmentAmount').value = '';
+    }
+
+    // ডাটা মুছে ফেলা
+    function deleteData(index) {
+        if(confirm('আপনি কি নিশ্চিত যে এই হিসাবটি মুছে ফেলতে চান?')) {
+            organizationData.splice(index, 1);
+            renderTable();
+        }
+    }
+
+    // মোডাল কন্ট্রোল
+    function openModal() { document.getElementById('loginModal').style.display = 'flex'; }
+    function closeModal() { document.getElementById('loginModal').style.display = 'none'; }
+    
+    // লগআউট
+    function logout() {
+        isAdmin = false;
+        document.getElementById('adminPanel').style.display = 'none';
+        document.getElementById('loginBtn').style.display = 'inline-block';
+        document.getElementById('logoutBtn').style.display = 'none';
+        renderTable();
+        alert('লগআউট সফল হয়েছে। এখন সাইটটি শুধু দেখার জন্য (Read-only)।');
+    }
+</script>
+
+</body>
+</html>
